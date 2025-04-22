@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/white"
+    android:gravity="center">
+
+    <!-- Drag handle -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:background="@drawable/drag_handle"
+        android:layout_gravity="center"
+        android:layout_marginBottom="18dp"
+        android:alpha="0.3"/>
+
+    <TextView
+        android:text="@string/addTransaction"
+        android:textStyle="bold"
+        android:textSize="24sp"
+        android:textColor="@android:color/black"
+        android:layout_gravity="center"
+        android:layout_marginBottom="22dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <!-- Inputs -->
+    <Spinner
+        android:id="@+id/spinner_category"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/edit_text_background"
+        android:textColor="@color/darkBlue"
+        android:layout_marginBottom="12dp"
+        android:spinnerMode="dropdown" />
+
+    <EditText
+        android:id="@+id/edit_title"
+        android:hint="@string/title"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/edit_text_background"
+        android:textColor="@color/darkBlue"
+        android:inputType="text"
+        android:padding="12dp" />
+
+    <EditText
+        android:id="@+id/edit_amount"
+        android:hint="@string/amount"
+        android:inputType="numberDecimal"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/edit_text_background"
+        android:textColor="@color/darkBlue"
+        android:padding="12dp" />
+
+    <EditText
+        android:id="@+id/edit_date"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/edit_text_background"
+        android:textColor="@color/darkBlue"
+        android:hint="@string/date"
+        android:inputType="date"
+        android:focusable="false"
+        android:clickable="true"
+        android:padding="12dp" />
+
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_gravity="end"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="18dp">
+
+        <!-- Toggle -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/income"
+            android:textColor="@color/darkBlue"
+            android:textSize="14sp"
+            android:layout_marginEnd="8dp" />
+
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/type_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:checked="true"
+            app:trackTint="@color/switch_track"
+            app:thumbTint="@color/switch_thumb" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/expense"
+            android:textColor="@color/darkBlue"
+            android:textSize="14sp"
+            android:layout_marginStart="8dp" />
+    </LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_add_transaction"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:text="@string/addTransaction"
+        android:textSize="16sp"
+        android:textColor="@android:color/white"
+        android:backgroundTint="@color/darkBlue"
+        app:cornerRadius="8dp"
+        android:textStyle="bold" />
+</LinearLayout>
