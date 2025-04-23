@@ -19,6 +19,8 @@ import com.google.gson.reflect.TypeToken
 import java.util.Calendar
 
 class AddTransactionBottomSheet : BottomSheetDialogFragment() {
+    private var transactionSavedListener: OnTransactionSavedListener? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -137,6 +139,7 @@ class AddTransactionBottomSheet : BottomSheetDialogFragment() {
                 // Edit existing transaction
                 editor.putString(existingKey, gson.toJson(transaction)).apply()
                 Toast.makeText(context, "Transaction updated", Toast.LENGTH_SHORT).show()
+                transactionSavedListener?.onTransactionSaved()
             } else {
                 // Add new
                 val key = "transaction_${System.currentTimeMillis()}"
@@ -155,6 +158,14 @@ class AddTransactionBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
+    interface OnTransactionSavedListener {
+        fun onTransactionSaved()
+    }
+
+    fun setOnTransactionSavedListener(listener: OnTransactionSavedListener) {
+        this.transactionSavedListener = listener
+    }
+
     companion object {
         fun newInstance(transaction: Transaction, key: String): AddTransactionBottomSheet {
             val fragment = AddTransactionBottomSheet()
@@ -165,6 +176,4 @@ class AddTransactionBottomSheet : BottomSheetDialogFragment() {
             return fragment
         }
     }
-
 }
-

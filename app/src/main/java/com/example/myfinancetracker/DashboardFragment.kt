@@ -52,7 +52,7 @@ class DashboardFragment : Fragment() {
         val headerTitle = view.findViewById<TextView>(R.id.pageTitle)
         headerTitle?.text = "Dashboard"
 
-        val summary = getFinanceSummary(requireContext())
+        val summary = getMonthlyFinanceSummaryAndCheckBudget(requireContext())
         val incomeText = view.findViewById<TextView>(R.id.text_value_income)
         val expenseText = view.findViewById<TextView>(R.id.text_value_expense)
         val balanceText = view.findViewById<TextView>(R.id.balance_text)

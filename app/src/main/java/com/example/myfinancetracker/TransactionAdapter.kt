@@ -8,7 +8,7 @@ import androidx.recyclerview.widget.RecyclerView
 
 class TransactionAdapter(
     private val transactions: List<Transaction>,
-    private val onItemLongClick: (Transaction, Int) -> Boolean
+    private val onItemLongClick: (Transaction, Int, View) -> Unit
 ) : RecyclerView.Adapter<TransactionAdapter.TransactionViewHolder>() {
 
     class TransactionViewHolder(view: View) : RecyclerView.ViewHolder(view) {
@@ -42,8 +42,10 @@ class TransactionAdapter(
 
         // Long-press listener
         holder.itemView.setOnLongClickListener { view ->
-            onItemLongClick(transaction, position)
+            onItemLongClick(transaction, position, view)
+            true
         }
+
     }
 
     override fun getItemCount(): Int = transactions.size

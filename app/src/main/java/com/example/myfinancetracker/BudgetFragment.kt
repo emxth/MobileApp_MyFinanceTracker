@@ -1,12 +1,17 @@
 package com.example.myfinancetracker
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.TextView
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // TODO: Rename parameter arguments, choose names that match
 // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
@@ -46,6 +51,22 @@ class BudgetFragment : Fragment() {
         // Set header title
         val headerTitle = view.findViewById<TextView>(R.id.pageTitle)
         headerTitle?.text = "Budget"
+
+        val budgetEditText = view.findViewById<EditText>(R.id.budget_edit_text)
+        val sharedPref = requireContext().getSharedPreferences("budget", Context.MODE_PRIVATE)
+        val currentMonth = SimpleDateFormat("MM-yyyy", Locale.getDefault()).format(Date())
+
+        // Load existing budget
+        budgetEditText.setText(sharedPref.getFloat("budget_$currentMonth", 0f).toString())
+
+        // Save budget on change
+        budgetEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                val budget = budgetEditText.text.toString().toFloatOrNull() ?: 0f
+                sharedPref.edit().putFloat("budget_$currentMonth", budget).apply()
+            }
+        }
+
     }
 
     companion object {

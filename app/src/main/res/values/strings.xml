@@ -29,6 +29,14 @@
     <string name="delete">Delete</string>
     <!--    Budget-->
     <string name="addMonthlyBudget">Add monthly budget</string>
+    <string name="addMonthlyBudgetCaption">App will be notified when the specified limit is reached.</string>
+    <!--    Analytics-->
+    <string name="expenseSummary">Expense Summary</string>
+    <string name="incomeSummary">Income Summary</string>
+    <string name="selectMonth">Select Month</string>
+    <string name="totalIncome">Total Income</string>
+    <string name="totalExpense">Total Expense</string>
+    <string name="totalBalance">Total Balance</string>
     <!--    Settings-->
     <string name="notifications">Notifications</string>
     <string name="exceedingBudget">Warning when exceeding budget</string>
@@ -37,14 +45,12 @@
     <string name="exportData">Export data to file</string>
     <string name="importData">Import data from file</string>
 
-<!--    Transaction categories-->
+<!--    Transaction categories (Array)-->
     <string-array name="transaction_categories">
         <item>Select Category</item>
-<!--        Income-->
         <item>Salary</item>
         <item>Freelance</item>
         <item>Investments</item>
-<!--        Expense-->
         <item>Food</item>
         <item>Transportation</item>
         <item>Utilities</item>

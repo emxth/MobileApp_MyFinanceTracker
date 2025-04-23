@@ -11,6 +11,8 @@ activity = "1.10.1"
 constraintlayout = "2.2.1"
 cardview = "1.0.0"
 gson = "2.10.1"
+mpandroidchart = "3.1.0"
+mpandroidchartVersion = "v3.1.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -22,7 +24,9 @@ material = { group = "com.google.android.material", name = "material", version.r
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+mpandroidchart = { module = "com.github.PhilJay:MPAndroidChart", version.ref = "mpandroidchart" }
 androidx-cardview = { group = "androidx.cardview", name = "cardview", version.ref = "cardview" }
+mpandroidchart-vv310 = { module = "com.github.PhilJay:MPAndroidChart", version.ref = "mpandroidchartVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

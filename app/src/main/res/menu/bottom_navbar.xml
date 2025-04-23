@@ -6,9 +6,9 @@
         android:icon="@drawable/transactions_24" />
 
     <item
-        android:id="@+id/budget"
-        android:title="@string/budget"
-        android:icon="@drawable/budget_24" />
+        android:id="@+id/analytics"
+        android:title="@string/analytics"
+        android:icon="@drawable/analytics_24" />
 
     <item
         android:id="@+id/dashboard"
@@ -16,9 +16,9 @@
         android:icon="@drawable/home_24" />
 
     <item
-        android:id="@+id/analytics"
-        android:title="@string/analytics"
-        android:icon="@drawable/analytics_24" />
+        android:id="@+id/budget"
+        android:title="@string/budget"
+        android:icon="@drawable/budget_24" />
 
     <item
         android:id="@+id/settings"

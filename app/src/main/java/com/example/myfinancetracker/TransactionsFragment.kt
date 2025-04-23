@@ -4,42 +4,31 @@ import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.Gson
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [TransactionsFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
 class TransactionsFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
-
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: TransactionAdapter
     private val transactions = mutableListOf<Transaction>()
+    private val filteredTransactions = mutableListOf<Transaction>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
     }
 
     override fun onCreateView(
@@ -62,6 +51,18 @@ class TransactionsFragment : Fragment() {
         recyclerView = view.findViewById(R.id.transaction_recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
 
+        // Search EditText
+        val searchEditText = view.findViewById<EditText>(R.id.search_edit_text)
+        searchEditText.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                val keyword = s.toString().lowercase()
+                filterTransactions(keyword)
+            }
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
         loadTransactions()
     }
 
@@ -82,20 +83,49 @@ class TransactionsFragment : Fragment() {
                     null
                 }
             }
+            .sortedByDescending { transaction ->
+                // Parse the date to sort (assumes date format is "dd/MM/yyyy")
+                try {
+                    val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                    format.parse(transaction.date)
+                } catch (e: Exception) {
+                    Date(0) // fallback to oldest date if parsing fails
+                }
+            }
 
         transactions.addAll(loadedTransactions)
+        filteredTransactions.clear()
+        filteredTransactions.addAll(transactions)
 
         // Only initialize adapter once
-        adapter = TransactionAdapter(transactions) { transaction, position ->
-            showContextMenu(transaction, position)
-            true
+        adapter = TransactionAdapter(filteredTransactions) { transaction, position, anchorView ->
+            showContextMenu(transaction, position, anchorView)
         }
+
         recyclerView.adapter = adapter
     }
 
+    // Setup filter transactions
+    @SuppressLint("NotifyDataSetChanged")
+    private fun filterTransactions(keyword: String) {
+        filteredTransactions.clear()
+
+        if (keyword.isEmpty()) {
+            filteredTransactions.addAll(transactions)
+        } else {
+            filteredTransactions.addAll(transactions.filter {
+                it.title.lowercase().contains(keyword) ||
+                        it.category.lowercase().contains(keyword) ||
+                        it.date.lowercase().contains(keyword)
+            })
+        }
+
+        adapter.notifyDataSetChanged()
+    }
+
     // Preview long touch popup box
-    private fun showContextMenu(transaction: Transaction, position: Int) {
-        val popup = PopupMenu(requireContext(), recyclerView)
+    private fun showContextMenu(transaction: Transaction, position: Int, anchorView: View) {
+        val popup = PopupMenu(requireContext(), anchorView)
         popup.menuInflater.inflate(R.menu.transaction_options, popup.menu)
 
         popup.setOnMenuItemClickListener { item ->
@@ -126,11 +156,19 @@ class TransactionsFragment : Fragment() {
 
         if (key != null) {
             val sheet = AddTransactionBottomSheet.newInstance(transaction, key)
+
+            sheet.setOnTransactionSavedListener(object : AddTransactionBottomSheet.OnTransactionSavedListener {
+                override fun onTransactionSaved() {
+                    loadTransactions()
+                }
+            })
+
             sheet.show(parentFragmentManager, "EditTransaction")
         } else {
             Toast.makeText(requireContext(), "Unable to edit transaction", Toast.LENGTH_SHORT).show()
         }
     }
+
 
 
     // Setup delete transactions
@@ -182,24 +220,4 @@ class TransactionsFragment : Fragment() {
             .show()
     }
 
-
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment TransactionsFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            TransactionsFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
-                }
-            }
-    }
 }
