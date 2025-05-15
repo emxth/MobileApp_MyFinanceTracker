@@ -124,7 +124,8 @@
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:paddingStart="14dp"
-            android:paddingEnd="0dp">
+            android:paddingEnd="0dp"
+            android:layout_marginBottom="16dp">
 
             <ImageView
                 android:layout_width="24dp"
@@ -145,6 +146,30 @@
                 android:textColor="@color/black"
                 android:textSize="14sp" />
         </LinearLayout>
+
+        <!-- Profile options settings -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/profileOptions"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/black"
+            android:layout_marginBottom="10dp"/>
+
+        <TextView
+            android:id="@+id/text_btn_logout"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:text="@string/logout"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/darkBlue"
+            android:layout_marginBottom="28dp"
+            android:layout_marginStart="18dp"
+            android:textAllCaps="true"
+            android:clickable="true"
+            android:focusable="true" />
     </LinearLayout>
 
 </FrameLayout>

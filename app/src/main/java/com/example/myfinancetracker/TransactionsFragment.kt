@@ -2,7 +2,6 @@ package com.example.myfinancetracker
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.content.Context
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -14,9 +13,11 @@ import android.widget.EditText
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.gson.Gson
+import com.example.myfinancetracker.viewmodel.TransactionViewModel
+import data.entity.TransactionEntity
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -26,6 +27,7 @@ class TransactionsFragment : Fragment() {
     private lateinit var adapter: TransactionAdapter
     private val transactions = mutableListOf<Transaction>()
     private val filteredTransactions = mutableListOf<Transaction>()
+    private lateinit var transactionViewModel: TransactionViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,9 +49,40 @@ class TransactionsFragment : Fragment() {
         val headerTitle = view.findViewById<TextView>(R.id.pageTitle)
         headerTitle?.text = "Transactions"
 
-        // Setup RecyclerView
+        // Initialize RecyclerView FIRST
         recyclerView = view.findViewById(R.id.transaction_recycler_view)
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
+
+        // Init ViewModel
+        transactionViewModel = ViewModelProvider(this)[TransactionViewModel::class.java]
+
+        adapter = TransactionAdapter(filteredTransactions) { transaction, position, anchorView ->
+            showContextMenu(transaction, position, anchorView)
+        }
+        recyclerView.adapter = adapter
+
+        // Observe and load all transactions from database
+        transactionViewModel.getAllTransactions().observe(viewLifecycleOwner) { dbTransactions ->
+            transactions.clear()
+            transactions.addAll(dbTransactions.map {
+                Transaction(
+                    id = it.id,  // Ensure your Transaction model includes `id`
+                    title = it.title,
+                    amount = it.amount,
+                    category = it.category,
+                    date = it.date,
+                    type = it.type,
+                    userId = it.userId
+                )
+            }.sortedByDescending {
+                try {
+                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(it.date)
+                } catch (e: Exception) {
+                    Date(0)
+                }
+            })
+            filterTransactions("") // Refresh filtered list
+        }
 
         // Search EditText
         val searchEditText = view.findViewById<EditText>(R.id.search_edit_text)
@@ -62,47 +95,46 @@ class TransactionsFragment : Fragment() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
         })
-
-        loadTransactions()
     }
 
     // Load all transactions
+    @SuppressLint("NotifyDataSetChanged")
     private fun loadTransactions() {
-        transactions.clear() // Clear old items before loading
+        transactionViewModel.getAllTransactions().observe(viewLifecycleOwner) { loadedEntities ->
+            transactions.clear()
 
-        val sharedPreferences = requireContext().getSharedPreferences("transactions", Context.MODE_PRIVATE)
-        val gson = Gson()
-
-        val allEntries = sharedPreferences.all
-        val loadedTransactions = allEntries
-            .filter { it.key.startsWith("transaction_") }
-            .mapNotNull { entry ->
+            val convertedAndSorted = loadedEntities.map {
+                Transaction(
+                    id = it.id,
+                    title = it.title,
+                    amount = it.amount,
+                    category = it.category,
+                    date = it.date,
+                    type = it.type,
+                    userId = it.userId
+                )
+            }.sortedByDescending {
                 try {
-                    gson.fromJson(entry.value as String, Transaction::class.java)
+                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(it.date)
                 } catch (e: Exception) {
-                    null
-                }
-            }
-            .sortedByDescending { transaction ->
-                // Parse the date to sort (assumes date format is "dd/MM/yyyy")
-                try {
-                    val format = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-                    format.parse(transaction.date)
-                } catch (e: Exception) {
-                    Date(0) // fallback to oldest date if parsing fails
+                    Date(0)
                 }
             }
 
-        transactions.addAll(loadedTransactions)
-        filteredTransactions.clear()
-        filteredTransactions.addAll(transactions)
+            transactions.addAll(convertedAndSorted)
 
-        // Only initialize adapter once
-        adapter = TransactionAdapter(filteredTransactions) { transaction, position, anchorView ->
-            showContextMenu(transaction, position, anchorView)
+            filteredTransactions.clear()
+            filteredTransactions.addAll(transactions)
+
+            if (!::adapter.isInitialized) {
+                adapter = TransactionAdapter(filteredTransactions) { transaction, position, anchorView ->
+                    showContextMenu(transaction, position, anchorView)
+                }
+                recyclerView.adapter = adapter
+            } else {
+                adapter.notifyDataSetChanged()
+            }
         }
-
-        recyclerView.adapter = adapter
     }
 
     // Setup filter transactions
@@ -134,10 +166,12 @@ class TransactionsFragment : Fragment() {
                     editTransaction(transaction)
                     true
                 }
+
                 R.id.menu_delete -> {
                     deleteTransaction(position)
                     true
                 }
+
                 else -> false
             }
         }
@@ -146,74 +180,35 @@ class TransactionsFragment : Fragment() {
 
     // Setup edit transactions
     private fun editTransaction(transaction: Transaction) {
-        val sharedPref = requireContext().getSharedPreferences("transactions", Context.MODE_PRIVATE)
-        val allEntries = sharedPref.all
+        val sheet = AddTransactionBottomSheet.newInstance(transaction)
 
-        val key = allEntries.entries.find { (_, value) ->
-            val savedTransaction = Gson().fromJson(value as String, Transaction::class.java)
-            savedTransaction == transaction
-        }?.key
+        sheet.setOnTransactionSavedListener(object :
+            AddTransactionBottomSheet.OnTransactionSavedListener {
+            override fun onTransactionSaved() {
+                loadTransactions()
+            }
+        })
 
-        if (key != null) {
-            val sheet = AddTransactionBottomSheet.newInstance(transaction, key)
-
-            sheet.setOnTransactionSavedListener(object : AddTransactionBottomSheet.OnTransactionSavedListener {
-                override fun onTransactionSaved() {
-                    loadTransactions()
-                }
-            })
-
-            sheet.show(parentFragmentManager, "EditTransaction")
-        } else {
-            Toast.makeText(requireContext(), "Unable to edit transaction", Toast.LENGTH_SHORT).show()
-        }
+        sheet.show(parentFragmentManager, "EditTransaction")
     }
-
-
 
     // Setup delete transactions
     private fun deleteTransaction(position: Int) {
         val transaction = transactions[position]
-
         AlertDialog.Builder(requireContext())
             .setTitle("Delete Transaction")
             .setMessage("Are you sure?")
             .setPositiveButton("Delete") { _, _ ->
-                // Delete from SharedPreferences
-                val sharedPreferences = requireContext().getSharedPreferences("transactions", Context.MODE_PRIVATE)
-                val editor = sharedPreferences.edit()
-
-                // Loop through entries to find the exact transaction to delete
-                val gson = Gson()
-                val allEntries = sharedPreferences.all
-
-                for ((key, value) in allEntries) {
-                    if (key.startsWith("transaction_")) {
-                        val storedTransaction = try {
-                            gson.fromJson(value as String, Transaction::class.java)
-                        } catch (e: Exception) {
-                            null
-                        }
-
-                        if (storedTransaction != null &&
-                            storedTransaction.title == transaction.title &&
-                            storedTransaction.date == transaction.date &&
-                            storedTransaction.amount == transaction.amount &&
-                            storedTransaction.category == transaction.category &&
-                            storedTransaction.type == transaction.type
-                        ) {
-                            editor.remove(key) // remove matched transaction
-                            break
-                        }
-                    }
-                }
-
-                editor.apply()
-
-                // Remove from list and notify adapter
-                transactions.removeAt(position)
-                adapter.notifyItemRemoved(position)
-
+                val entity = TransactionEntity(
+                    id = transaction.id,
+                    title = transaction.title,
+                    amount = transaction.amount,
+                    category = transaction.category,
+                    date = transaction.date,
+                    type = transaction.type,
+                    userId = transaction.userId
+                )
+                transactionViewModel.delete(entity)
                 Toast.makeText(requireContext(), "Transaction deleted", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)

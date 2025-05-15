@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.DatePickerDialog
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,14 +13,25 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
 import android.widget.Toast
+import androidx.lifecycle.lifecycleScope
+import androidx.room.Room
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import data.AppDatabase
+import data.dao.TransactionDao
+import data.entity.TransactionEntity
+import kotlinx.coroutines.launch
+import util.SessionManager
 import java.util.Calendar
 
 class AddTransactionBottomSheet : BottomSheetDialogFragment() {
+
     private var transactionSavedListener: OnTransactionSavedListener? = null
+    private lateinit var db: AppDatabase
+    private lateinit var transactionDao: TransactionDao
+    private var existingTransaction: Transaction? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -29,7 +41,7 @@ class AddTransactionBottomSheet : BottomSheetDialogFragment() {
         return inflater.inflate(R.layout.bottom_sheet_add_transaction, container, false)
     }
 
-    @SuppressLint("CutPasteId", "SetTextI18n", "DefaultLocale")
+    @SuppressLint("SetTextI18n", "DefaultLocale")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
@@ -38,123 +50,99 @@ class AddTransactionBottomSheet : BottomSheetDialogFragment() {
         val amountEdit = view.findViewById<EditText>(R.id.edit_amount)
         val titleEdit = view.findViewById<EditText>(R.id.edit_title)
         val addButton = view.findViewById<Button>(R.id.btn_add_transaction)
+        val typeSwitch = view.findViewById<SwitchMaterial>(R.id.type_switch)
 
-        val sharedPref = requireContext().getSharedPreferences("transactions", Context.MODE_PRIVATE)
-        val gson = Gson()
+        db = AppDatabase.getDatabase(requireContext())
+        transactionDao = db.transactionDao()
 
-        // Set up the Switch
-        // Safely initialize views with null checks
-        val addIncomeBtn = view.findViewById<Button>(R.id.btn_add_income)?.apply {
-            setOnClickListener {
-                view.findViewById<SwitchMaterial>(R.id.type_switch)?.isChecked = true
-            }
-        }
-        val addExpenseBtn = view.findViewById<Button>(R.id.btn_add_expense)?.apply {
-            setOnClickListener {
-                view.findViewById<SwitchMaterial>(R.id.type_switch)?.isChecked = false
-            }
-        }
-        // Initialize switch and set default state
-        val typeSwitch = view.findViewById<SwitchMaterial>(R.id.type_switch)?.apply {
-            isChecked = true // Default to income
-        }
-
-        // Setup selected item values for updating
-        // Set up the Spinner adapter first so it's available
-        val adapter = ArrayAdapter.createFromResource(
+        // Spinner adapter setup
+        val spinnerAdapter = ArrayAdapter.createFromResource(
             requireContext(),
             R.array.transaction_categories,
             R.layout.custom_spinner_item
         ).apply {
             setDropDownViewResource(R.layout.custom_spinner_item)
         }
-        spinner.adapter = adapter
+        spinner.adapter = spinnerAdapter
 
-        // Setup selected item values for updating
-        val transactionToEdit = arguments?.getParcelable<Transaction>("transaction")
-        val existingKey = arguments?.getString("key")
+        // Set up income/expense toggle buttons
+        view.findViewById<Button>(R.id.btn_add_income)?.setOnClickListener {
+            typeSwitch.isChecked = true
+        }
+        view.findViewById<Button>(R.id.btn_add_expense)?.setOnClickListener {
+            typeSwitch.isChecked = false
+        }
 
-        if (transactionToEdit != null) {
-            // Set the values in UI
-            spinner.setSelection(adapter.getPosition(transactionToEdit.category))
-            titleEdit.setText(transactionToEdit.title)
-            amountEdit.setText(transactionToEdit.amount.toString())
-            editDate.setText(transactionToEdit.date)
-            typeSwitch?.isChecked = transactionToEdit.type == "expense"
+        // Set default switch state
+        typeSwitch.isChecked = true
 
-            // Update button text
+        // Get transaction if editing
+        existingTransaction = arguments?.getParcelable(ARG_TRANSACTION)
+        existingTransaction?.let {
+            spinner.setSelection(spinnerAdapter.getPosition(it.category))
+            titleEdit.setText(it.title)
+            amountEdit.setText(it.amount.toString())
+            editDate.setText(it.date)
+            typeSwitch.isChecked = it.type == "expense"
             addButton.text = "Update Transaction"
         }
 
-        // Set up the Date picker
+        // Date picker
         editDate.setOnClickListener {
             val calendar = Calendar.getInstance()
-            val year = calendar.get(Calendar.YEAR)
-            val month = calendar.get(Calendar.MONTH)
-            val day = calendar.get(Calendar.DAY_OF_MONTH)
-
-            val datePickerDialog = DatePickerDialog(
+            DatePickerDialog(
                 requireContext(),
-                { _, selectedYear, selectedMonth, selectedDay ->
-                    val selectedDate = String.format("%02d/%02d/%d", selectedDay, selectedMonth + 1, selectedYear)
-                    editDate.setText(selectedDate)
+                { _, year, month, day ->
+                    editDate.setText(String.format("%02d/%02d/%d", day, month + 1, year))
                 },
-                year,
-                month,
-                day
-            )
-            datePickerDialog.show()
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+            ).show()
         }
 
-        // Set up the Spinner for Category dropdown
-        // Create an ArrayAdapter using the string array and a default spinner layout
-        val adapterDefault = ArrayAdapter.createFromResource(
-            requireContext(),
-            R.array.transaction_categories,
-            R.layout.custom_spinner_item
-        ).apply {
-            setDropDownViewResource(R.layout.custom_spinner_item)
-        }
-
-        // Apply the adapter to the spinner
-        spinner.adapter = adapterDefault
-
-        // Adding new transaction
+        // Save transaction (Insert or Update)
         addButton.setOnClickListener {
             val category = spinner.selectedItem.toString()
             val title = titleEdit.text.toString()
             val amount = amountEdit.text.toString().toDoubleOrNull()
             val date = editDate.text.toString()
-            val type = if (typeSwitch?.isChecked == true) "expense" else "income"
+            val type = if (typeSwitch.isChecked) "expense" else "income"
 
-            if (title.isEmpty() || amount == null || date.isEmpty()) {
+            if (title.isEmpty() || amount == null || date.isEmpty() || category.isEmpty()) {
                 Toast.makeText(context, "Please fill all fields", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            val transaction = Transaction(category, title, amount, date, type)
-            val editor = sharedPref.edit()
-
-            if (existingKey != null) {
-                // Edit existing transaction
-                editor.putString(existingKey, gson.toJson(transaction)).apply()
-                Toast.makeText(context, "Transaction updated", Toast.LENGTH_SHORT).show()
-                transactionSavedListener?.onTransactionSaved()
-            } else {
-                // Add new
-                val key = "transaction_${System.currentTimeMillis()}"
-                editor.putString(key, gson.toJson(transaction)).apply()
-                Toast.makeText(context, "Transaction added", Toast.LENGTH_SHORT).show()
+            val userId = SessionManager.getUserId(requireContext())
+            if (userId == -1) {
+                Toast.makeText(context, "User not logged in", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
 
-            dismiss()
+            val transactionEntity = TransactionEntity(
+                id = existingTransaction?.id ?: 0,  // 0 means auto-generate if inserting
+                userId = userId,
+                category = category,
+                title = title,
+                amount = amount,
+                date = date,
+                type = type
+            )
 
-            // Optionally: clear inputs
-            titleEdit.text.clear()
-            amountEdit.text.clear()
-            editDate.text.clear()
-            spinner.setSelection(0)
-            typeSwitch?.isChecked = true
+            lifecycleScope.launch {
+                if (existingTransaction != null) {
+                    transactionDao.updateTransaction(transactionEntity)
+                    Log.d("Transaction", "Updated: $transactionEntity")
+                } else {
+                    transactionDao.insertTransaction(transactionEntity)
+                    Log.d("Transaction", "Inserted: $transactionEntity")
+                }
+
+                Toast.makeText(context, "Transaction saved", Toast.LENGTH_SHORT).show()
+                transactionSavedListener?.onTransactionSaved()
+                dismiss()
+            }
         }
     }
 
@@ -167,13 +155,15 @@ class AddTransactionBottomSheet : BottomSheetDialogFragment() {
     }
 
     companion object {
-        fun newInstance(transaction: Transaction, key: String): AddTransactionBottomSheet {
+        private const val ARG_TRANSACTION = "transaction"
+
+        fun newInstance(transaction: Transaction): AddTransactionBottomSheet {
             val fragment = AddTransactionBottomSheet()
             val args = Bundle()
-            args.putParcelable("transaction", transaction)
-            args.putString("key", key)
+            args.putParcelable(ARG_TRANSACTION, transaction)
             fragment.arguments = args
             return fragment
         }
     }
 }
+

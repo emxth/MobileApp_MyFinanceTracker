@@ -2,6 +2,7 @@ package com.example.myfinancetracker
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import androidx.fragment.app.Fragment
@@ -12,26 +13,22 @@ import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.lifecycle.lifecycleScope
+import com.example.myfinancetracker.databinding.FragmentSettingsBinding
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import data.AppDatabase
+import data.entity.NotificationSettingsEntity
+import kotlinx.coroutines.launch
+import util.SessionManager
 import java.io.File
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
+@SuppressLint("StaticFieldLeak")
+private var _binding: FragmentSettingsBinding? = null
+private val binding get() = _binding!!
 
-/**
- * A simple [Fragment] subclass.
- * Use the [SettingsFragment.newInstance] factory method to
- * create an instance of this fragment.
- */
 class SettingsFragment : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
-
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         uri?.let {
             val success = importTransactionsFromUri(requireContext(), it)
@@ -42,42 +39,58 @@ class SettingsFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
     }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_settings, container, false)
+    ): View {
+        _binding = FragmentSettingsBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
     @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Set header title
         val headerTitle = view.findViewById<TextView>(R.id.pageTitle)
-        headerTitle?.text = "Settings"
+        headerTitle.text = "Settings"
 
         val exceedSwitch = view.findViewById<SwitchMaterial>(R.id.budget_exceed_notification_switch)
         val reachingSwitch = view.findViewById<SwitchMaterial>(R.id.budget_exceed_reaching_notification_switch)
-        val settingsPref = requireContext().getSharedPreferences("notification_settings", Context.MODE_PRIVATE)
 
-        // Load switch states
-        exceedSwitch.isChecked = settingsPref.getBoolean("notify_exceed", true)
-        reachingSwitch.isChecked = settingsPref.getBoolean("notify_reaching", true)
+        val db = AppDatabase.getDatabase(requireContext())
+        val settingsDao = db.notificationSettingsDao()
+        val userId = SessionManager.getUserId(requireContext())
 
-        // Save changes
-        exceedSwitch.setOnCheckedChangeListener { _, isChecked ->
-            settingsPref.edit().putBoolean("notify_exceed", isChecked).apply()
+        lifecycleScope.launch {
+            val settings = settingsDao.getSettings(userId)
+            exceedSwitch.isChecked = settings?.notifyExceed ?: true
+            reachingSwitch.isChecked = settings?.notifyReaching ?: true
         }
+
+        exceedSwitch.setOnCheckedChangeListener { _, isChecked ->
+            lifecycleScope.launch {
+                val current = settingsDao.getSettings(userId)
+                val updated = NotificationSettingsEntity(
+                    userId = userId,
+                    notifyExceed = isChecked,
+                    notifyReaching = current?.notifyReaching ?: true
+                )
+                settingsDao.insertOrUpdate(updated)
+            }
+        }
+
         reachingSwitch.setOnCheckedChangeListener { _, isChecked ->
-            settingsPref.edit().putBoolean("notify_reaching", isChecked).apply()
+            lifecycleScope.launch {
+                val current = settingsDao.getSettings(userId)
+                val updated = NotificationSettingsEntity(
+                    userId = userId,
+                    notifyExceed = current?.notifyExceed ?: true,
+                    notifyReaching = isChecked
+                )
+                settingsDao.insertOrUpdate(updated)
+            }
         }
 
         // Setup Export and Import
@@ -94,6 +107,15 @@ class SettingsFragment : Fragment() {
 
         btnImport.setOnClickListener {
             importLauncher.launch(arrayOf("application/json")) // Allow user to pick a JSON file
+        }
+
+        binding.textBtnLogout.setOnClickListener {
+            SessionManager.clearSession(requireContext())
+            Toast.makeText(context, "Logged out", Toast.LENGTH_SHORT).show()
+
+            val intent = Intent(requireContext(), SignInActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            startActivity(intent)
         }
     }
 
@@ -137,23 +159,10 @@ class SettingsFragment : Fragment() {
         }
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment SettingsFragment.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            SettingsFragment().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
-                }
-            }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null // avoid memory leaks
     }
+
+    companion object {}
 }

@@ -1,5 +1,18 @@
 <resources>
-    <string name="app_name">My Finance Tracker</string>
+    <string name="app_name">Finance Tracker</string>
+    <!--    Landing page-->
+    <string name="landingContent">Best way to save your money</string>
+    <string name="signup">Sign up</string>
+    <string name="signIn">Sign in</string>
+    <string name="contentDescription">Landing Image</string>
+    <!--    Sign in-->
+    <string name="name">Username</string>
+    <string name="password">Password</string>
+    <string name="signInContent">I\'m new user.</string>
+    <!--    Sign up-->
+    <string name="email">Email</string>
+    <string name="mobile">Mobile</string>
+    <string name="signUpContent">Already have an account.</string>
     <!--    Bottom navigation-->
     <string name="transactions">Transactions</string>
     <string name="budget">Budget</string>
@@ -44,8 +57,10 @@
     <string name="advancedOptions">Advanced options</string>
     <string name="exportData">Export data to file</string>
     <string name="importData">Import data from file</string>
+    <string name="profileOptions">Account options</string>
+    <string name="logout">Log out</string>
 
-<!--    Transaction categories (Array)-->
+    <!--    Transaction categories (Array)-->
     <string-array name="transaction_categories">
         <item>Select Category</item>
         <item>Salary</item>

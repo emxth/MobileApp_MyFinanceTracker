@@ -1,5 +1,7 @@
 package com.example.myfinancetracker
 
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -19,6 +21,18 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, 0)
             insets
         }
+
+        val sharedPref = getSharedPreferences("user_session", Context.MODE_PRIVATE)
+        val isLoggedIn = sharedPref.getBoolean("is_logged_in", false)
+
+        if (!isLoggedIn) {
+            val intent = Intent(this, SignInActivity::class.java)
+            startActivity(intent)
+            finish()
+            return
+        }
+
+        setContentView(R.layout.activity_main)
 
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNavBar)
         bottomNav.selectedItemId = R.id.dashboard
